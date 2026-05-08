@@ -5,7 +5,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.main import app
 from app.core.database import Base, get_db
-from app.core.security import get_password_hash
+from app.core.security import hash_password
 from app.models.user import User
 import uuid
 
@@ -50,7 +50,7 @@ async def test_user(db_session):
     user = User(
         id=str(uuid.uuid4()),
         email="test@mail.com",
-        hashed_password=get_password_hash("testpass123"),
+        hashed_password=hash_password("testpass123"),
         full_name="Test User",
         is_active=True,
         is_verified=False,
