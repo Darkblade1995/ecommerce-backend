@@ -1,0 +1,117 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  test-user-service:
+    name: Test user-service
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: services/user-service
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: services/user-service
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+          JWT_SECRET_KEY: test-secret-key-32-chars-minimum-xx
+          DEBUG: "True"
+        run: pytest tests/ -v
+
+  build:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs: test-user-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push user-service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/user-service
+          file: docker/user-service/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+
+      - name: Build and push product-service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/product-service
+          file: docker/product-service/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/product-service:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/product-service:${{ github.sha }}
+
+      - name: Build and push order-service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/order-service
+          file: docker/order-service/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ github.sha }}
+
+      - name: Build and push notification-service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/notification-service
+          file: docker/notification-service/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/notification-service:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
+
+      - name: Build and push api-gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: services/api-gateway
+          file: docker/api-gateway/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
