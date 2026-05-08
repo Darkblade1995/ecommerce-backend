@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: ecommerce
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      containers:
+        - name: product-service
+          image: product-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8002
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: PRODUCT_DATABASE_URL
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: JWT_SECRET_KEY
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: REDIS_URL
+            - name: REDIS_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: REDIS_PREFIX
+            - name: CACHE_TTL
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: CACHE_TTL
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DEBUG
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: ecommerce
+spec:
+  selector:
+    app: product-service
+  ports:
+    - port: 8002
+      targetPort: 8002

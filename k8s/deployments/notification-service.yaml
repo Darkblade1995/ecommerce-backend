@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: notification-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8004
+          env:
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_TOPIC_ORDERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: KAFKA_TOPIC_ORDERS
+            - name: KAFKA_GROUP_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: KAFKA_GROUP_ID
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: ecommerce
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8004
+      targetPort: 8004

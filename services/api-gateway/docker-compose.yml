@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+
+  api-gateway:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      JWT_SECRET_KEY: dev-secret-key-32-chars-minimum-xx
+      USER_SERVICE_URL: http://host.docker.internal:8001
+      REDIS_URL: redis://redis:6379
+      DEBUG: "True"
+    depends_on:
+      - redis

@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: ecommerce
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: order-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8003
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: ORDER_DATABASE_URL
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: JWT_SECRET_KEY
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: USER_SERVICE_URL
+            - name: PRODUCT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: PRODUCT_SERVICE_URL
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_TOPIC_ORDERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: KAFKA_TOPIC_ORDERS
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: DEBUG
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: ecommerce
+spec:
+  selector:
+    app: order-service
+  ports:
+    - port: 8003
+      targetPort: 8003

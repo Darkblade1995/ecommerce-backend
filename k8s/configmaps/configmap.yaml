@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+  namespace: ecommerce
+data:
+
+  USER_SERVICE_URL: "http://user-service.ecommerce.svc.cluster.local:8001"
+  PRODUCT_SERVICE_URL: "http://product-service.ecommerce.svc.cluster.local:8002"
+
+
+  USER_DB_HOST: "user-postgres.ecommerce.svc.cluster.local"
+  USER_DB_PORT: "5432"
+  USER_DB_NAME: "users_db"
+
+  PRODUCT_DB_HOST: "product-postgres.ecommerce.svc.cluster.local"
+  PRODUCT_DB_PORT: "5432"
+  PRODUCT_DB_NAME: "products_db"
+
+  ORDER_DB_HOST: "order-postgres.ecommerce.svc.cluster.local"
+  ORDER_DB_PORT: "5432"
+  ORDER_DB_NAME: "orders_db"
+
+
+  REDIS_URL: "redis://redis.ecommerce.svc.cluster.local:6379"
+  REDIS_PREFIX: "product-service"
+  CACHE_TTL: "300"
+
+
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.ecommerce.svc.cluster.local:9092"
+  KAFKA_TOPIC_ORDERS: "orders"
+  KAFKA_TOPIC_PAYMENTS: "payments"
+  KAFKA_CONSUMER_GROUP: "order-service-group"
+  KAFKA_GROUP_ID: "notification-service-group"
+
+
+  DEBUG: "False"

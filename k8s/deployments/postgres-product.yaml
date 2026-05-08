@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-postgres
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-postgres
+  template:
+    metadata:
+      labels:
+        app: product-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: PRODUCT_DB_PASSWORD
+            - name: POSTGRES_DB
+              value: products_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-postgres
+  namespace: ecommerce
+spec:
+  selector:
+    app: product-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
