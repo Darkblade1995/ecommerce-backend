@@ -5,16 +5,14 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.main import app
 from app.core.database import Base, get_db
-
+from app.core.security import get_password_hash
+from app.models.user import User
+import uuid
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@localhost:5432/test_db"
 )
-
-@pytest.fixture(scope="session")
-def anyio_backend():
-    return "asyncio"
 
 @pytest_asyncio.fixture(scope="function")
 async def db_engine():
@@ -46,3 +44,18 @@ async def client(db_session):
     ) as ac:
         yield ac
     app.dependency_overrides.clear()
+
+@pytest_asyncio.fixture(scope="function")
+async def test_user(db_session):
+    user = User(
+        id=str(uuid.uuid4()),
+        email="test@mail.com",
+        hashed_password=get_password_hash("testpass123"),
+        full_name="Test User",
+        is_active=True,
+        is_verified=False,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
