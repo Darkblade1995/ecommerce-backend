@@ -7,6 +7,8 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.middleware.rate_limiter import setup_limiter
 from app.routers import users, products
+from prometheus_fastapi_instrumentator import Instrumentator
+
 
 
 @asynccontextmanager
@@ -23,6 +25,8 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+Instrumentator().instrument(app).expose(app)
 
 app.add_middleware(
     CORSMiddleware,

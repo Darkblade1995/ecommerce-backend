@@ -1,0 +1,24 @@
+# Python virtual environments
+**/venv/
+**/.venv/
+**/env/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+
+# Environment files
+**/.env
+
+# Go binaries
+**/notification-service.exe
+**/notification-service
+
+# Kubernetes secrets
+k8s/secrets/
+
+# IDE
+.vscode/
+.idea/

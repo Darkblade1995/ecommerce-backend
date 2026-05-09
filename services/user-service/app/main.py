@@ -5,6 +5,8 @@ from app.core.database import engine, Base
 from app.models import user as user_model
 from app.models import token as token_model
 from app.api.v1 import auth, users
+from prometheus_fastapi_instrumentator import Instrumentator
+
 
 
 app = FastAPI(
@@ -12,6 +14,9 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url=None,
 )
+
+Instrumentator().instrument(app).expose(app)
+
 
 app.add_middleware(
     CORSMiddleware,

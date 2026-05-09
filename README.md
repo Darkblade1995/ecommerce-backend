@@ -68,11 +68,11 @@ cd services/order-service && docker-compose up -d
 docker run -d -p 6379:6379 redis:7-alpine
 
 # Services
-uvicorn app.main:app --port 8001 --reload  # user-service
-uvicorn app.main:app --port 8002 --reload  # product-service
-uvicorn app.main:app --port 8003 --reload  # order-service
-uvicorn app.main:app --port 8000           # api-gateway
-go run . # notification-service
+uvicorn app.main:app --port 8001 --reload  
+uvicorn app.main:app --port 8002 --reload  
+uvicorn app.main:app --port 8003 --reload  
+uvicorn app.main:app --port 8000          
+go run . 
 ```
 
 ### Run on Kubernetes

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import traceback
 from contextlib import asynccontextmanager
@@ -11,77 +10,39 @@ from app.core.database import engine, Base
 from app.core import kafka
 from app.models import order as order_model
 from app.api.v1 import orders
+from prometheus_fastapi_instrumentator import Instrumentator
 
 logger = logging.getLogger(__name__)
 
 
-# ─── Consumer task ────────────────────────────────────
-
 async def consume_payment_events() -> None:
-    """
-    Background task que escucha eventos del topic 'payments'.
-    Corre indefinidamente mientras la app está viva.
-
-    Cuando llega un evento PAYMENT_CONFIRMED o PAYMENT_FAILED,
-    actualiza el estado de la orden correspondiente.
-    """
     consumer = kafka.create_consumer([settings.KAFKA_TOPIC_PAYMENTS])
-
     try:
         await consumer.start()
         logger.info("Kafka consumer started, listening to payments topic")
-
-        
         async for message in consumer:
             try:
                 event = message.value
                 event_type = event.get("event_type")
                 data = event.get("data", {})
                 order_id = data.get("order_id")
-
                 if not order_id:
                     continue
-
                 logger.info(f"Received event: {event_type} for order {order_id}")
-
-                
-                if event_type == "PAYMENT_CONFIRMED":
-                   
-                    async with httpx_internal() as client:
-                        await client.post(
-                            f"http://localhost:{PORT}/api/v1/orders/{order_id}/payment-confirmed"
-                        )
-
-                elif event_type == "PAYMENT_FAILED":
-                  
-                    async with httpx_internal() as client:
-                        await client.post(
-                            f"http://localhost:{PORT}/api/v1/orders/{order_id}/payment-failed"
-                        )
-
             except Exception as e:
                 logger.error(f"Error processing payment event: {e}")
-                logger.error(traceback.format_exc())
-
     except asyncio.CancelledError:
-        
         logger.info("Kafka consumer task cancelled")
     finally:
         await consumer.stop()
         logger.info("Kafka consumer stopped")
 
 
-# ─── Lifespan ─────────────────────────────────────────
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── STARTUP ──────────────────────────────────────
-
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables ready")
-
 
     try:
         await kafka.start_kafka_producer()
@@ -89,7 +50,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Kafka producer failed to start: {e}")
         logger.warning("Service will run without Kafka")
-
 
     consumer_task = None
     try:
@@ -101,11 +61,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Kafka consumer failed to start: {e}")
 
-    yield  
+    yield
 
-    # ── SHUTDOWN ─────────────────────────────────────
-
-  
     if consumer_task and not consumer_task.done():
         consumer_task.cancel()
         try:
@@ -114,15 +71,10 @@ async def lifespan(app: FastAPI):
             pass
         logger.info("Kafka consumer task stopped")
 
-   
     await kafka.stop_kafka_producer()
-
-    
     await engine.dispose()
     logger.info("order-service shutdown complete")
 
-
-# ─── App ──────────────────────────────────────────────
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -130,6 +82,8 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+Instrumentator().instrument(app).expose(app)
 
 app.add_middleware(
     CORSMiddleware,
