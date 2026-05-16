@@ -1,12 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, get_db
 from app.models import user as user_model
 from app.models import token as token_model
 from app.api.v1 import auth, users
 from prometheus_fastapi_instrumentator import Instrumentator
-
 
 
 app = FastAPI(
@@ -16,7 +18,6 @@ app = FastAPI(
 )
 
 Instrumentator().instrument(app).expose(app)
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,5 +38,19 @@ async def startup():
 
 
 @app.get("/health", tags=["Infrastructure"])
-async def health_check():
-    return {"status": "healthy", "service": settings.APP_NAME}
+async def health_check(db: AsyncSession = Depends(get_db)):
+    health = {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "checks": {}
+    }
+
+    try:
+        await db.execute(text("SELECT 1"))
+        health["checks"]["database"] = "healthy"
+    except Exception as e:
+        health["checks"]["database"] = f"unhealthy: {str(e)}"
+        health["status"] = "unhealthy"
+
+    status_code = 200 if health["status"] == "healthy" else 503
+    return JSONResponse(content=health, status_code=status_code)

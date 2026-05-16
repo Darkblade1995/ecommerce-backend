@@ -2,11 +2,13 @@ import asyncio
 import logging
 import traceback
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, get_db
 from app.core import kafka
 from app.models import order as order_model
 from app.api.v1 import orders
@@ -97,11 +99,32 @@ app.include_router(orders.router)
 
 
 @app.get("/health", tags=["Infrastructure"])
-async def health_check():
-    return {
+async def health_check(db: AsyncSession = Depends(get_db)):
+    health = {
         "status": "healthy",
         "service": settings.APP_NAME,
+        "checks": {}
     }
+
+    # Verifica PostgreSQL
+    try:
+        await db.execute(text("SELECT 1"))
+        health["checks"]["database"] = "healthy"
+    except Exception as e:
+        health["checks"]["database"] = f"unhealthy: {str(e)}"
+        health["status"] = "unhealthy"
+
+    # Verifica Kafka producer
+    try:
+        if kafka.producer:
+            health["checks"]["kafka"] = "healthy"
+        else:
+            health["checks"]["kafka"] = "not connected"
+    except Exception as e:
+        health["checks"]["kafka"] = f"unhealthy: {str(e)}"
+
+    status_code = 200 if health["status"] == "healthy" else 503
+    return JSONResponse(content=health, status_code=status_code)
 
 
 @app.exception_handler(Exception)
