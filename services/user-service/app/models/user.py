@@ -1,4 +1,3 @@
-
 import uuid
 import enum
 from datetime import datetime, timezone
@@ -8,10 +7,9 @@ from app.core.database import Base
 
 
 class UserRole(str, enum.Enum):
-
     USER = "user"
     ADMIN = "admin"
-    MERCHANT = "merchant" 
+    MERCHANT = "merchant"
 
 
 class User(Base):
@@ -20,18 +18,16 @@ class User(Base):
     id: Mapped[str] = mapped_column(
         String(36),
         primary_key=True,
-
         default=lambda: str(uuid.uuid4())
     )
 
     email: Mapped[str] = mapped_column(
         String(255),
-        unique=True,     
+        unique=True,
         nullable=False,
-        index=True       
+        index=True
     )
 
-    
     hashed_password: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True
@@ -43,11 +39,10 @@ class User(Base):
     )
 
     role: Mapped[UserRole] = mapped_column(
-        SAEnum(UserRole),       
-        default=UserRole.USER, 
+        SAEnum(UserRole),
+        default=UserRole.USER,
         nullable=False
     )
-
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -55,20 +50,17 @@ class User(Base):
         nullable=False
     )
 
-
     is_verified: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False
     )
 
-
     google_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
         unique=True
     )
-
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -78,15 +70,18 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)  
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
-   
+    last_login: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
+    )
 
     refresh_tokens = relationship(
         "RefreshToken",
         back_populates="user",
-        cascade="all, delete-orphan"  
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
