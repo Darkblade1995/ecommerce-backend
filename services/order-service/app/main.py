@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import engine, Base, get_db
+from app.core.logging import setup_logging
 from app.core import kafka
 from app.models import order as order_model
 from app.api.v1 import orders
@@ -42,6 +43,7 @@ async def consume_payment_events() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging("order-service")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables ready")
@@ -106,7 +108,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         "checks": {}
     }
 
-    # Verifica PostgreSQL
     try:
         await db.execute(text("SELECT 1"))
         health["checks"]["database"] = "healthy"
@@ -114,7 +115,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         health["checks"]["database"] = f"unhealthy: {str(e)}"
         health["status"] = "unhealthy"
 
-    # Verifica Kafka producer
     try:
         if kafka.producer:
             health["checks"]["kafka"] = "healthy"

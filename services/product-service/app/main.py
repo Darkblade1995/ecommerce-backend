@@ -1,3 +1,4 @@
+import logging
 import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends, status
@@ -8,28 +9,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import engine, Base, get_db
 from app.core.cache import init_redis, redis_client
+from app.core.logging import setup_logging
 from app.models import product as product_model
 from app.api.v1 import products
 from prometheus_fastapi_instrumentator import Instrumentator
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging("product-service")
     try:
         await init_redis()
-        print("Redis connected")
+        logger.info("Redis connected")
     except Exception as e:
-        print(f"Redis connection failed: {e}")
-        print("Service will run without cache")
+        logger.warning(f"Redis connection failed: {e}")
+        logger.warning("Service will run without cache")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    print("Database tables ready")
+    logger.info("Database tables ready")
     yield
     if redis_client:
         await redis_client.close()
-        print("Redis disconnected")
+        logger.info("Redis disconnected")
     await engine.dispose()
-    print("Database pool closed")
+    logger.info("Database pool closed")
 
 
 app = FastAPI(
@@ -60,7 +65,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         "checks": {}
     }
 
-    # Verifica PostgreSQL
     try:
         await db.execute(text("SELECT 1"))
         health["checks"]["database"] = "healthy"
@@ -68,7 +72,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         health["checks"]["database"] = f"unhealthy: {str(e)}"
         health["status"] = "unhealthy"
 
-    # Verifica Redis
     try:
         if redis_client:
             await redis_client.ping()
@@ -86,7 +89,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     if settings.DEBUG:
-        print(f"\n>>> ERROR:\n{traceback.format_exc()}")
+        logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": str(exc)}

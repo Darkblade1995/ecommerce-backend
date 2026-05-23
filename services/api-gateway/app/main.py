@@ -1,3 +1,4 @@
+import logging
 import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
@@ -5,13 +6,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
 from app.core.config import settings
+from app.core.logging import setup_logging
 from app.middleware.rate_limiter import setup_limiter
 from app.routers import users, products
 from prometheus_fastapi_instrumentator import Instrumentator
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging("api-gateway")
     await setup_limiter(app)
     yield
 
@@ -45,7 +50,6 @@ async def health_check():
         "checks": {}
     }
 
-    # Verifica user-service
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get(f"{settings.USER_SERVICE_URL}/health")
@@ -58,7 +62,6 @@ async def health_check():
         health["checks"]["user_service"] = f"unhealthy: {str(e)}"
         health["status"] = "degraded"
 
-    # Verifica product-service
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get(f"{settings.PRODUCT_SERVICE_URL}/health")
@@ -77,7 +80,7 @@ async def health_check():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print(f"\n>>> ERROR: {traceback.format_exc()}")
+    logger.error(traceback.format_exc())
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": str(exc)}

@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import engine, Base, get_db
+from app.core.logging import setup_logging
 from app.models import user as user_model
 from app.models import token as token_model
 from app.api.v1 import auth, users
@@ -33,6 +34,7 @@ app.include_router(users.router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup():
+    setup_logging("user-service")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
