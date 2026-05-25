@@ -1,0 +1,23 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ecommerce-tls
+  namespace: ecommerce
+spec:
+  secretName: ecommerce-tls-secret
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - ecommerce.local
+    - orders.ecommerce.local
+    - grafana.ecommerce.local
+    - monitor.ecommerce.local
+    - tracing.ecommerce.local

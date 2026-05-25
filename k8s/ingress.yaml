@@ -5,8 +5,17 @@ metadata:
   namespace: ecommerce
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - ecommerce.local
+        - orders.ecommerce.local
+        - grafana.ecommerce.local
+        - monitor.ecommerce.local
+        - tracing.ecommerce.local
+      secretName: ecommerce-tls-secret
   rules:
     - host: ecommerce.local
       http:
