@@ -6,11 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import engine, Base, get_db
 from app.core.logging import setup_logging
+from app.core.tracing import setup_tracing, instrument_app, instrument_db
 from app.models import user as user_model
 from app.models import token as token_model
 from app.api.v1 import auth, users
 from prometheus_fastapi_instrumentator import Instrumentator
 
+setup_logging("user-service")
+setup_tracing("user-service")
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -18,6 +21,7 @@ app = FastAPI(
     redoc_url=None,
 )
 
+instrument_app(app)
 Instrumentator().instrument(app).expose(app)
 
 app.add_middleware(
@@ -34,7 +38,7 @@ app.include_router(users.router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup():
-    setup_logging("user-service")
+    instrument_db(engine)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

@@ -10,16 +10,20 @@ from app.core.config import settings
 from app.core.database import engine, Base, get_db
 from app.core.cache import init_redis, redis_client
 from app.core.logging import setup_logging
+from app.core.tracing import setup_tracing, instrument_app, instrument_db
 from app.models import product as product_model
 from app.api.v1 import products
 from prometheus_fastapi_instrumentator import Instrumentator
+
+setup_logging("product-service")
+setup_tracing("product-service")
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging("product-service")
+    instrument_db(engine)
     try:
         await init_redis()
         logger.info("Redis connected")
@@ -44,6 +48,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+instrument_app(app)
 Instrumentator().instrument(app).expose(app)
 
 app.add_middleware(

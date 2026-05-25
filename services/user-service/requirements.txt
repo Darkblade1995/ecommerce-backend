@@ -31,3 +31,8 @@ prometheus-fastapi-instrumentator==6.1.0
 alembic==1.13.1
 psycopg2-binary==2.9.9
 python-json-logger==2.0.7
+opentelemetry-api==1.23.0
+opentelemetry-sdk==1.23.0
+opentelemetry-instrumentation-fastapi==0.44b0
+opentelemetry-instrumentation-sqlalchemy==0.44b0
+opentelemetry-exporter-otlp-proto-grpc==1.23.0

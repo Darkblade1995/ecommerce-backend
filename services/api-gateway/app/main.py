@@ -7,16 +7,19 @@ from fastapi.responses import JSONResponse
 import httpx
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.core.tracing import setup_tracing, instrument_app
 from app.middleware.rate_limiter import setup_limiter
 from app.routers import users, products
 from prometheus_fastapi_instrumentator import Instrumentator
+
+setup_logging("api-gateway")
+setup_tracing("api-gateway")
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging("api-gateway")
     await setup_limiter(app)
     yield
 
@@ -28,6 +31,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+instrument_app(app)
 Instrumentator().instrument(app).expose(app)
 
 app.add_middleware(

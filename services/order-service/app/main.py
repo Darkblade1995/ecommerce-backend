@@ -10,10 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import engine, Base, get_db
 from app.core.logging import setup_logging
+from app.core.tracing import setup_tracing, instrument_app, instrument_db
 from app.core import kafka
 from app.models import order as order_model
 from app.api.v1 import orders
 from prometheus_fastapi_instrumentator import Instrumentator
+
+setup_logging("order-service")
+setup_tracing("order-service")
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +47,7 @@ async def consume_payment_events() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging("order-service")
+    instrument_db(engine)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables ready")
@@ -87,6 +91,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+instrument_app(app)
 Instrumentator().instrument(app).expose(app)
 
 app.add_middleware(
