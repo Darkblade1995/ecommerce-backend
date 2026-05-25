@@ -1,0 +1,155 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-service-policy
+  namespace: ecommerce
+spec:
+  podSelector:
+    matchLabels:
+      app: user-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-postgres
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+    - ports:
+        - port: 53
+          protocol: UDP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: product-service-policy
+  namespace: ecommerce
+spec:
+  podSelector:
+    matchLabels:
+      app: product-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: order-service
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: product-postgres
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+    - ports:
+        - port: 53
+          protocol: UDP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service-policy
+  namespace: ecommerce
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: order-postgres
+    - to:
+        - podSelector:
+            matchLabels:
+              app: product-service
+    - ports:
+        - port: 53
+          protocol: UDP
+    - ports:
+        - port: 9092
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-policy
+  namespace: ecommerce
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: product-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+    - ports:
+        - port: 53
+          protocol: UDP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-policy
+  namespace: ecommerce
+spec:
+  podSelector:
+    matchLabels:
+      tier: database
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: user-service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: product-service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: order-service
