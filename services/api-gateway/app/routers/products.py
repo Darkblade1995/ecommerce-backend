@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Response, Depends, HTTPException, status
+from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi_limiter.depends import RateLimiter
 from app.core.config import settings
 from app.core.security import require_auth, optional_auth
@@ -18,6 +18,37 @@ def require_role(allowed_roles: list[str]):
             )
         return payload
     return check_role
+
+
+
+@router.get("/categories",
+    dependencies=[Depends(RateLimiter(times=200, seconds=60))])
+async def get_categories(
+    request: Request,
+    payload: dict | None = Depends(optional_auth)
+):
+    extra_headers = {}
+    if payload:
+        extra_headers["X-User-ID"] = payload["sub"]
+        extra_headers["X-User-Role"] = payload.get("role", "user")
+    url = f"{settings.PRODUCT_SERVICE_URL}/api/v1/categories"
+    return await proxy_request(request, url, extra_headers)
+
+
+@router.post("/categories",
+    dependencies=[Depends(RateLimiter(times=30, seconds=60))])
+async def create_category(
+    request: Request,
+    payload: dict = Depends(require_role(["merchant", "admin"]))
+):
+    extra_headers = {
+        "X-User-ID": payload["sub"],
+        "X-User-Role": payload.get("role", "user"),
+    }
+    url = f"{settings.PRODUCT_SERVICE_URL}/api/v1/categories"
+    return await proxy_request(request, url, extra_headers)
+
+
 
 
 @router.get("/products",

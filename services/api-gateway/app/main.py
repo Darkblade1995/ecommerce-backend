@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.tracing import setup_tracing, instrument_app
 from app.middleware.rate_limiter import setup_limiter
-from app.routers import users, products
+from app.routers import users, products, orders
 from prometheus_fastapi_instrumentator import Instrumentator
 
 setup_logging("api-gateway")
@@ -42,8 +42,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(users.router)
 app.include_router(products.router)
+app.include_router(orders.router)
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["Infrastructure"])

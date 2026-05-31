@@ -15,38 +15,38 @@ class OrderCommandHandler:
     """
     Maneja todas las operaciones de escritura del order-service.
     Cada método representa un Command que modifica el estado del sistema.
-
     Se registra un OrderEvent y se publica un evento en Kafka.
     """
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
-   
-
     async def _validate_products(
         self,
         items: list
     ) -> dict[str, ProductValidation]:
-        """
-        Verifica que todos los productos existen y tienen stock.
-        Retorna un dict {product_id: ProductValidation} con los datos
-        de cada producto para construir los OrderItems.
-
-        Hace las llamadas HTTP en paralelo para mayor velocidad.
-        """
         async with httpx.AsyncClient() as client:
             validated = {}
             for item in items:
                 try:
                     response = await client.get(
                         f"{settings.PRODUCT_SERVICE_URL}/api/v1/products/{item.product_id}",
-                        timeout=5.0
+                        timeout=30.0
                     )
                 except httpx.ConnectError:
                     raise HTTPException(
                         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                         detail="Product service unavailable"
+                    )
+                except httpx.ConnectTimeout:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="Product service timeout"
+                    )
+                except httpx.TimeoutException:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="Product service timeout"
                     )
 
                 if response.status_code == 404:
@@ -76,7 +76,6 @@ class OrderCommandHandler:
         return validated
 
     async def _get_order(self, order_id: str) -> Order:
-        """Helper para obtener una orden con sus items y eventos."""
         result = await self.db.execute(
             select(Order)
             .options(
@@ -100,11 +99,6 @@ class OrderCommandHandler:
         event_data: dict | None = None,
         created_by: str = "system"
     ) -> None:
-        """
-        Registra un evento en order_events.
-        Este es el corazón del Event Sourcing:
-        cada cambio de estado genera un registro inmutable.
-        """
         event = OrderEvent(
             id=str(uuid.uuid4()),
             order_id=order_id,
@@ -115,34 +109,19 @@ class OrderCommandHandler:
         self.db.add(event)
         await self.db.flush()
 
-   
-
     async def create_order(
         self,
         data: OrderCreate,
         user_id: str
     ) -> Order:
-        """
-        Command: CreateOrder
-
-        Flujo:
-        1. Validar que todos los productos existen y tienen stock
-        2. Calcular el total con precios actuales
-        3. Crear la orden y sus items en PostgreSQL
-        4. Registrar evento ORDER_CREATED
-        5. Publicar evento en Kafka para otros servicios
-        """
-      
         validated_products = await self._validate_products(data.items)
 
-       
         total = Decimal("0")
         for item in data.items:
             product = validated_products[item.product_id]
             subtotal = product.price * item.quantity
             total += subtotal
 
-       
         order = Order(
             id=str(uuid.uuid4()),
             user_id=user_id,
@@ -154,7 +133,6 @@ class OrderCommandHandler:
         self.db.add(order)
         await self.db.flush()
 
-       
         order_items = []
         for item in data.items:
             product = validated_products[item.product_id]
@@ -162,10 +140,8 @@ class OrderCommandHandler:
                 id=str(uuid.uuid4()),
                 order_id=order.id,
                 product_id=item.product_id,
-               
                 product_name=product.name,
                 quantity=item.quantity,
-             
                 unit_price=product.price,
                 subtotal=product.price * item.quantity,
             )
@@ -174,7 +150,6 @@ class OrderCommandHandler:
 
         await self.db.flush()
 
-       
         await self._add_event(
             order_id=order.id,
             event_type=OrderEventType.ORDER_CREATED,
@@ -192,7 +167,6 @@ class OrderCommandHandler:
             },
             created_by=user_id
         )
-
 
         await kafka.publish_order_created(
             order_id=order.id,
@@ -216,22 +190,13 @@ class OrderCommandHandler:
         user_id: str,
         reason: str = "User requested cancellation"
     ) -> Order:
-        """
-        Command: CancelOrder
-
-        Solo se puede cancelar si el estado es:
-        PENDING, PAYMENT_PENDING, CONFIRMED, o PROCESSING.
-        No se puede cancelar una orden ya enviada o entregada.
-        """
         order = await self._get_order(order_id)
-
 
         if order.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only cancel your own orders"
             )
-
 
         cancellable_statuses = [
             OrderStatus.PENDING,
@@ -271,16 +236,6 @@ class OrderCommandHandler:
         data: OrderStatusUpdate,
         updated_by: str = "system"
     ) -> Order:
-        """
-        Command: UpdateOrderStatus
-
-        Usado internamente por el sistema cuando:
-        - payment-service confirma el pago
-        - warehouse procesa el envío
-        - repartidor marca como entregado
-
-        Valida que la transición de estado sea válida.
-        """
         order = await self._get_order(order_id)
 
         valid_transitions = {
@@ -305,7 +260,6 @@ class OrderCommandHandler:
         old_status = order.status.value
         order.status = data.status
         await self.db.flush()
-
 
         status_to_event = {
             OrderStatus.PAYMENT_PENDING: OrderEventType.PAYMENT_INITIATED,

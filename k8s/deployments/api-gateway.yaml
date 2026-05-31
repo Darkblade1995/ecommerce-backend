@@ -42,6 +42,11 @@ spec:
                 configMapKeyRef:
                   name: ecommerce-config
                   key: PRODUCT_SERVICE_URL
+            - name: ORDER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config
+                  key: ORDER_SERVICE_URL
             - name: REDIS_URL
               valueFrom:
                 configMapKeyRef:
