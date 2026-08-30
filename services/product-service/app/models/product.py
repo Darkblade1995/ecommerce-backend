@@ -6,6 +6,7 @@ from sqlalchemy import String, Boolean, DateTime, Numeric, Integer, ForeignKey, 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from decimal import BasicContext
+from datetime import _Date
 
 class Category(Base):
     __tablename__ = "categories"
