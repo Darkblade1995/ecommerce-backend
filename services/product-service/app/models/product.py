@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import String, Boolean, DateTime, Numeric, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
-
+from decimal import BasicContext
 
 class Category(Base):
     __tablename__ = "categories"
