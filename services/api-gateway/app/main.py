@@ -15,6 +15,9 @@ from prometheus_fastapi_instrumentator import Instrumentator
 setup_logging("api-gateway")
 setup_tracing("api-gateway")
 
+#This is my main 
+#hello
+#check check
 logger = logging.getLogger(__name__)
 
 
